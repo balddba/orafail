@@ -1,0 +1,24 @@
+# Example configuration for Oracle login failure monitor.
+# Copy this file to `config.yaml` and replace dummy values with real credentials.
+
+databases:
+  # List one or more Oracle databases to monitor.
+  - name: example-db-1 # Friendly label shown in logs/output.
+    dsn: db-host.example.internal:1521/ORCLPDB1 # Oracle DSN: host:port/service_name.
+    user: monitor_user # Least-privilege read account recommended.
+    password: "change-me" # Keep secrets out of git; use a real secret in local config.
+
+  # Optional second database example.
+  - name: example-db-2
+    dsn: another-host.example.internal:1521/APPDB
+    user: monitor_user
+    password: "change-me-too"
+
+# Number of parallel worker threads used for checks.
+max_workers: 5
+
+# Polling interval (seconds) between monitor refreshes.
+refresh_seconds: 15
+
+# Highlight duration (seconds) for newly detected failures.
+highlight_ttl: 3
