@@ -7,8 +7,8 @@ import pytest
 from rich.layout import Layout
 from rich.table import Table
 
-from oracle_login_failure_monitor.config import DatabaseConfig
-from oracle_login_failure_monitor.main import OracleLoginFailureMonitor
+from orafail.config import DatabaseConfig
+from orafail.main import OracleLoginFailureMonitor
 
 
 @pytest.fixture

@@ -21,7 +21,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from oracle_login_failure_monitor.config import AppConfig, DatabaseConfig
+from orafail.config import AppConfig, DatabaseConfig
 
 FailureDetail: TypeAlias = dict[str, Any]
 DatabaseResult: TypeAlias = dict[str, int | str | list[FailureDetail]]

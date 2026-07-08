@@ -10,13 +10,13 @@ fi
 
 # Run via virtualenv python if available
 if [[ -x "${SCRIPT_DIR}/.venv/bin/python" ]]; then
-  exec "${SCRIPT_DIR}/.venv/bin/python" -m oracle_login_failure_monitor.main "$@"
+  exec "${SCRIPT_DIR}/.venv/bin/python" -m orafail.main "$@"
 fi
 
 # Fallback to system python3
 if command -v python3 >/dev/null 2>&1; then
   export PYTHONPATH="${SCRIPT_DIR}/src:${PYTHONPATH:-}"
-  exec python3 -m oracle_login_failure_monitor.main "$@"
+  exec python3 -m orafail.main "$@"
 fi
 
 echo "Error: python3, uv, or .venv/bin/python is unavailable." >&2

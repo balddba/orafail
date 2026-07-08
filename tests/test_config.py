@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from oracle_login_failure_monitor.config import AppConfig
-from oracle_login_failure_monitor.main import OracleLoginFailureMonitor
+from orafail.config import AppConfig
+from orafail.main import OracleLoginFailureMonitor
 
 
 def test_load_config_valid(tmp_path: Path) -> None:

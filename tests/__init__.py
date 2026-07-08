@@ -1,1 +1,1 @@
-"""Tests for the oracle-login-failure-monitor package."""
+"""Tests for the orafail package."""

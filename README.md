@@ -1,4 +1,4 @@
-# Oracle Login Failure Monitor
+# Orafail
 
 A live, terminal-based dashboard that polls multiple Oracle databases concurrently for failed logon attempts. Designed for DBAs and security administrators, it helps identify potential brute-force attacks, misconfigured connection scripts, and unauthorized access attempts in real-time.
 
@@ -23,28 +23,6 @@ A live, terminal-based dashboard that polls multiple Oracle databases concurrent
 
 The following diagram illustrates the flow of data from target databases to the monitor:
 
-```mermaid
-flowchart TD
-    A[Monitor App] -->|ThreadPoolExecutor| B[Worker Thread 1]
-    A -->|ThreadPoolExecutor| C[Worker Thread 2]
-    A -->|ThreadPoolExecutor| D[Worker Thread N]
-    
-    B -->|oracledb Thin Mode| E[(Oracle DB 1)]
-    C -->|oracledb Thin Mode| F[(Oracle DB 2)]
-    D -->|oracledb Thin Mode| G[(Oracle DB N)]
-    
-    E -.->|Failed Logon Records| B
-    F -.->|Failed Logon Records| C
-    G -.->|Failed Logon Records| D
-    
-    B -->|DatabaseResult| H[State Manager]
-    C -->|DatabaseResult| H
-    D -->|DatabaseResult| H
-    
-    H -->|Render Layout| I[Rich Live TUI]
-    H -->|Log Events| J[Loguru Logger / File]
-```
-
 ---
 
 ## Installation
@@ -53,8 +31,8 @@ This project is built using Python 3.13+ and managed via the [uv](https://github
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/balddba/oracle-login-failure-monitor.git
-   cd oracle-login-failure-monitor
+   git clone https://github.com/balddba/orafail.git
+   cd orafail
    ```
 
 2. **Sync dependencies:**
@@ -147,13 +125,13 @@ To run the monitor in the background or stream events to standard logging (e.g.,
 When running in `--headless` mode, the monitor logs connection statuses and logon failure events to stdout/log files:
 
 ```text
-2026-07-08 15:52:25.704 | INFO     | oracle_login_failure_monitor.main:run:573 - Oracle Login Failure Monitor starting...
-2026-07-08 15:52:25.911 | INFO     | oracle_login_failure_monitor.main:run:589 - Database: homelab | Status: ONLINE | Latency: 204ms | Failures (1m/10m/1h): 0/0/1
-2026-07-08 15:52:25.911 | WARNING  | oracle_login_failure_monitor.main:run:599 - NEW FAILURE on homelab | User: STEVE | IP: oracle26ai.aaronslab.net | Last Failed: 2026-07-08 15:38:15.064532
-2026-07-08 15:52:25.911 | WARNING  | oracle_login_failure_monitor.main:run:599 - NEW FAILURE on homelab | User: SYSTEM | IP: Mac.aaronslab.net | Last Failed: 2026-07-08 13:58:53.295442
-2026-07-08 15:52:25.911 | WARNING  | oracle_login_failure_monitor.main:run:599 - NEW FAILURE on homelab | User: AMYERS | IP: Mac.aaronslab.net | Last Failed: 2026-07-08 13:54:11.958124
-2026-07-08 15:52:25.911 | WARNING  | oracle_login_failure_monitor.main:run:599 - NEW FAILURE on homelab | User: SYSTEM | IP: oracle-password-rotation-ui | Last Failed: 2026-06-30 14:36:37.579003
-2026-07-08 15:52:25.911 | WARNING  | oracle_login_failure_monitor.main:run:599 - NEW FAILURE on homelab | User: C##DBA_PW_ROTATION | IP: dcc61bbb7878 | Last Failed: 2026-06-19 10:35:23.796769
+2026-07-08 15:52:25.704 | INFO     | orafail.main:run:573 - Oracle Login Failure Monitor starting...
+2026-07-08 15:52:25.911 | INFO     | orafail.main:run:589 - Database: homelab | Status: ONLINE | Latency: 204ms | Failures (1m/10m/1h): 0/0/1
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: STEVE | IP: oracle26ai.aaronslab.net | Last Failed: 2026-07-08 15:38:15.064532
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: SYSTEM | IP: Mac.aaronslab.net | Last Failed: 2026-07-08 13:58:53.295442
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: AMYERS | IP: Mac.aaronslab.net | Last Failed: 2026-07-08 13:54:11.958124
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: SYSTEM | IP: oracle-password-rotation-ui | Last Failed: 2026-06-30 14:36:37.579003
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: C##DBA_PW_ROTATION | IP: dcc61bbb7878 | Last Failed: 2026-06-19 10:35:23.796769
 ```
 
 ---

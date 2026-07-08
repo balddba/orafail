@@ -1,4 +1,4 @@
-# Oracle Login Failure Monitor
+# Orafail
 
 Live terminal dashboard that polls Oracle databases for failed login events and renders them with Rich.
 
@@ -6,9 +6,9 @@ Live terminal dashboard that polls Oracle databases for failed login events and 
 
 | File | Purpose |
 |------|---------|
-| `oraacle_loging_failure_monitor.py` | Main entry point (note intentional typos in filename) |
-| `app_config.py` | `AppConfig` Pydantic model (databases, max_workers, refresh_seconds, highlight_ttl) |
-| `database_config.py` | `DatabaseConfig` Pydantic model (name, dsn, user, password) |
+| `src/orafail/main.py` | Main entry point / dashboard runner |
+| `src/orafail/config.py` | `AppConfig` and `DatabaseConfig` validation schemas |
+| `src/orafail/__init__.py` | Package init |
 | `config.yaml` | Active config with real credentials — **not committed to git** |
 | `config.example.yaml` | Template for new setups |
 | `pyproject.toml` | Project metadata and dependencies |
@@ -19,7 +19,7 @@ Live terminal dashboard that polls Oracle databases for failed login events and 
 ```bash
 ./orafail
 # or
-uv run oraacle_loging_failure_monitor.py
+uv run orafail
 ```
 
 ## Dependencies
