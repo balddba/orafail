@@ -2,8 +2,6 @@
 
 A live, terminal-based dashboard that polls multiple Oracle databases concurrently for failed logon attempts. Designed for DBAs and security administrators, it helps identify potential brute-force attacks, misconfigured connection scripts, and unauthorized access attempts in real-time.
 
-![Terminal output](./assets/terminal-output.png)
-
 ## Features
 
 - **Concurrent Polling:** Uses a thread pool (`ThreadPoolExecutor`) to monitor multiple Oracle databases concurrently without blocking the UI.
@@ -68,8 +66,8 @@ Update `config.yaml` with your connection parameters. Do not commit `config.yaml
 #### Sample `config.yaml`
 ```yaml
 databases:
-  - name: homelab
-    dsn: oracle26ai.aaronslab.net:1521/homelab
+  - name: prod-db
+    dsn: db-prod.balddba.com:1521/orcl
     user: system
     password: "YourSecurePassword"
 
@@ -126,12 +124,12 @@ When running in `--headless` mode, the monitor logs connection statuses and logo
 
 ```text
 2026-07-08 15:52:25.704 | INFO     | orafail.main:run:573 - Oracle Login Failure Monitor starting...
-2026-07-08 15:52:25.911 | INFO     | orafail.main:run:589 - Database: homelab | Status: ONLINE | Latency: 204ms | Failures (1m/10m/1h): 0/0/1
-2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: STEVE | IP: oracle26ai.aaronslab.net | Last Failed: 2026-07-08 15:38:15.064532
-2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: SYSTEM | IP: Mac.aaronslab.net | Last Failed: 2026-07-08 13:58:53.295442
-2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: AMYERS | IP: Mac.aaronslab.net | Last Failed: 2026-07-08 13:54:11.958124
-2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: SYSTEM | IP: oracle-password-rotation-ui | Last Failed: 2026-06-30 14:36:37.579003
-2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on homelab | User: C##DBA_PW_ROTATION | IP: dcc61bbb7878 | Last Failed: 2026-06-19 10:35:23.796769
+2026-07-08 15:52:25.911 | INFO     | orafail.main:run:589 - Database: prod-db | Status: ONLINE | Latency: 204ms | Failures (1m/10m/1h): 0/0/1
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on prod-db | User: STEVE | IP: oracle26ai.balddba.com | Last Failed: 2026-07-08 15:38:15.064532
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on prod-db | User: SYSTEM | IP: workstation.balddba.com | Last Failed: 2026-07-08 13:58:53.295442
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on prod-db | User: AMYERS | IP: workstation.balddba.com | Last Failed: 2026-07-08 13:54:11.958124
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on prod-db | User: SYSTEM | IP: rotation-ui.balddba.com | Last Failed: 2026-06-30 14:36:37.579003
+2026-07-08 15:52:25.911 | WARNING  | orafail.main:run:599 - NEW FAILURE on prod-db | User: C##DBA_PW_ROTATION | IP: app-container.balddba.com | Last Failed: 2026-06-19 10:35:23.796769
 ```
 
 ---
