@@ -3,13 +3,21 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Run using uv if available
+if command -v uv >/dev/null 2>&1; then
+  exec uv run --project "${SCRIPT_DIR}" orafail "$@"
+fi
+
+# Run via virtualenv python if available
 if [[ -x "${SCRIPT_DIR}/.venv/bin/python" ]]; then
-  exec "${SCRIPT_DIR}/.venv/bin/python" "${SCRIPT_DIR}/oraacle_loging_failure_monitor.py" "$@"
+  exec "${SCRIPT_DIR}/.venv/bin/python" -m oracle_login_failure_monitor.main "$@"
 fi
 
+# Fallback to system python3
 if command -v python3 >/dev/null 2>&1; then
-  exec python3 "${SCRIPT_DIR}/oraacle_loging_failure_monitor.py" "$@"
+  export PYTHONPATH="${SCRIPT_DIR}/src:${PYTHONPATH:-}"
+  exec python3 -m oracle_login_failure_monitor.main "$@"
 fi
 
-echo "Error: python3 not found and .venv/bin/python is unavailable." >&2
+echo "Error: python3, uv, or .venv/bin/python is unavailable." >&2
 exit 1

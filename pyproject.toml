@@ -1,11 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "live-failure"
+name = "oracle-login-failure-monitor"
 version = "0.1.0"
-description = "Add your description here"
+description = "Oracle login failure monitor dashboard"
 requires-python = ">=3.13"
 dependencies = [
+    "loguru>=0.7.3",
     "oracledb>=3.4.2",
     "pydantic>=2.13.1",
     "pyyaml>=6.0.3",
     "rich>=14.3.3",
+]
+
+[project.scripts]
+orafail = "oracle_login_failure_monitor.main:main"
+oracle-login-failure-monitor = "oracle_login_failure_monitor.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oracle_login_failure_monitor"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
 ]

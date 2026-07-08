@@ -22,3 +22,9 @@ refresh_seconds: 15
 
 # Highlight duration (seconds) for newly detected failures.
 highlight_ttl: 3
+
+# Log file location (relative or absolute). Set to null to disable logging to a file.
+log_file: "monitor.log"
+
+# Logging level (TRACE, DEBUG, INFO, SUCCESS, WARNING, ERROR, CRITICAL)
+log_level: "INFO"
