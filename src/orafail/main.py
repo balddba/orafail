@@ -23,12 +23,16 @@ from rich.text import Text
 
 from orafail.config import AppConfig, DatabaseConfig
 
+# Type aliases to represent internal data structures for Oracle audit events
 FailureDetail: TypeAlias = dict[str, Any]
 DatabaseResult: TypeAlias = dict[str, int | str | list[FailureDetail]]
 AllResults: TypeAlias = dict[str, DatabaseResult]
+# Unique key representing a specific login failure event (db_name, timestamp, user, source_ip)
 EventKey: TypeAlias = tuple[str, Any, Any, Any]
 
 
+# Summary query to aggregate failed logon events (return_code != 0)
+# across three rolling windows (1 minute, 10 minutes, and 1 hour) using SYSTIMESTAMP.
 SUMMARY_QUERY = """
 SELECT
   SUM(CASE WHEN event_timestamp > SYSTIMESTAMP - INTERVAL '1' MINUTE THEN 1 ELSE 0 END),
@@ -39,6 +43,8 @@ WHERE action_name = 'LOGON'
 AND return_code != 0
 """
 
+# Detail query to retrieve specific recent failed logons (grouped by username and host IP)
+# along with rolling window counts, limited to the top 5 most recent records.
 DETAIL_QUERY = """
 SELECT *
 FROM (
@@ -86,15 +92,19 @@ class OracleLoginFailureMonitor:
             ValueError: If the YAML file is empty or invalid for AppConfig.
         """
         config_path = Path(path)
+        # Ensure the configuration file exists on disk
         if not config_path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
+        # Open and load the YAML document safely
         with config_path.open("r", encoding="utf-8") as config_file:
             raw_config: dict[str, Any] | None = yaml.safe_load(config_file)
 
+        # Validate that the file is not empty
         if raw_config is None:
             raise ValueError(f"Config file is empty: {config_path}")
 
+        # Parse and validate schema against Pydantic config model
         return AppConfig.model_validate(raw_config)
 
     def __init__(
@@ -106,14 +116,20 @@ class OracleLoginFailureMonitor:
             config_path (str): Path to the YAML configuration file.
             headless (bool): Run in headless daemon mode (no terminal UI).
         """
+        # Load and bind core settings
         self.app_config = self.load_config(config_path)
         self.databases = self.app_config.databases
         self.highlight_ttl = self.app_config.highlight_ttl
+
+        # Initialize internal monitoring metrics and trackers
         self.previous_results: AllResults = {}
         self.seen_events: dict[str, set[EventKey]] = {}
         self.event_age: dict[EventKey, int] = {}
+        # Keep logs history of at most 5 messages for dashboard rendering
         self.log_messages: deque[str] = deque(maxlen=5)
         self.headless = headless
+
+        # Thread safety structures for database connection cache
         self._connections: dict[str, oracledb.Connection] = {}
         self._conn_lock = threading.Lock()
 
@@ -151,18 +167,22 @@ class OracleLoginFailureMonitor:
         start_time = time.perf_counter()
         conn = None
         try:
+            # Thread-safe retrieval and validation of connection from local cache
             with self._conn_lock:
                 conn = self._connections.get(db.name)
                 if conn is not None:
                     try:
+                        # Verify the connection remains alive
                         conn.ping()
                     except Exception:
+                        # Clear broken connections
                         try:
                             conn.close()
                         except Exception:
                             pass
                         conn = None
 
+                # Establish a new connection if not cached or cached connection is dead
                 if conn is None:
                     conn = oracledb.connect(
                         user=db.user,
@@ -172,13 +192,18 @@ class OracleLoginFailureMonitor:
                     )
                     self._connections[db.name] = conn
 
+            # Initialize cursor to execute DB queries
             cursor = conn.cursor()
 
+            # Execute the summary count aggregation
             cursor.execute(SUMMARY_QUERY)
             summary_row = cursor.fetchone()
 
+            # Execute the detailed logon failures query
             cursor.execute(DETAIL_QUERY)
             detail_rows = cursor.fetchall()
+
+            # Map raw tuples to a list of structured dictionaries
             details = [
                 {
                     "user": row[0],
@@ -193,6 +218,7 @@ class OracleLoginFailureMonitor:
 
             cursor.close()
 
+            # Compute round-trip query time
             latency_ms = int((time.perf_counter() - start_time) * 1000)
 
             return {
@@ -204,6 +230,7 @@ class OracleLoginFailureMonitor:
                 "details": details,
             }
         except Exception as e:
+            # Clean up broken connection state and return OFFLINE status
             logger.error(f"Failed to query database {db.name}: {e}")
             with self._conn_lock:
                 if db.name in self._connections:
@@ -224,6 +251,7 @@ class OracleLoginFailureMonitor:
     def close(self) -> None:
         """Close all cached database connections."""
         with self._conn_lock:
+            # Iterate through connections dictionary and safely close each connection
             for db_name, conn in list(self._connections.items()):
                 try:
                     conn.close()
@@ -237,6 +265,7 @@ class OracleLoginFailureMonitor:
         Returns:
             AllResults: Per-database query results for the dashboard.
         """
+        # Execute queries in parallel using thread pool workers to minimize refresh times
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=self.app_config.max_workers
         ) as executor:
@@ -245,6 +274,7 @@ class OracleLoginFailureMonitor:
                 for db in self.databases
             }
 
+            # Wait for all tasks to complete, or abort if the global timeout is exceeded
             done, not_done = concurrent.futures.wait(
                 futures.keys(),
                 timeout=float(self.app_config.query_timeout),
@@ -268,7 +298,7 @@ class OracleLoginFailureMonitor:
                         "details": [],
                     }
 
-            # Process timed out queries
+            # Process timed out queries and label them as TIMEOUT
             for future in not_done:
                 db = futures[future]
                 logger.warning(
@@ -296,12 +326,16 @@ class OracleLoginFailureMonitor:
         Returns:
             str: Rich formatted trend arrow symbol.
         """
+        # If there is no previous run to compare against, do not display trend arrows
         if not isinstance(current, int) or not isinstance(previous, int):
             return ""
+        # Upwards arrow: counts are rising
         if current > previous:
             return "[#ff5555]↑[/#ff5555]"
+        # Downwards arrow: counts are falling
         if current < previous:
             return "[#50fa7b]↓[/#50fa7b]"
+        # Sideways arrow: counts remain unchanged
         return "[#ffb86c]→[/#ffb86c]"
 
     def _build_summary_table(self, results: AllResults, previous: AllResults) -> Table:
@@ -314,6 +348,7 @@ class OracleLoginFailureMonitor:
         Returns:
             Table: Summary table to be rendered.
         """
+        # Create a new rich Table with styled columns
         table = Table(box=SIMPLE, expand=True)
 
         table.add_column("Database", style="bold #8be9fd")
@@ -328,6 +363,7 @@ class OracleLoginFailureMonitor:
             status = data.get("status", "OFFLINE")
             latency_ms = data.get("latency_ms")
 
+            # Style status markers based on connectivity
             if status == "ONLINE":
                 status_str = "[#50fa7b]● ONLINE[/#50fa7b]"
                 latency_str = f"{latency_ms}ms" if latency_ms is not None else "-"
@@ -335,6 +371,7 @@ class OracleLoginFailureMonitor:
                 status_str = "[#ff5555]● OFFLINE[/#ff5555]"
                 latency_str = "[dim]-[/dim]"
 
+            # Format cell content with color-coded severity levels
             def fmt(val: int | str, prev_val: Any) -> str:
                 arrow = self._trend_arrow(val, prev_val)
                 if not isinstance(val, int):
@@ -366,6 +403,7 @@ class OracleLoginFailureMonitor:
         Returns:
             EventKey: Unique key identifying the failure event.
         """
+        # Composite key consisting of database identifier, event timestamp, username, and remote IP
         return (db_name, row["last_failed_at"], row["user"], row["ip"])
 
     def _mark_new_rows(
@@ -388,11 +426,13 @@ class OracleLoginFailureMonitor:
         marked: list[tuple[FailureDetail, str]] = []
         for row in rows:
             key = self._build_event_key(db_name, row)
+            # If the event is seen for the first time, color it bold red and add to seen set
             if key not in self.seen_events[db_name]:
                 self.seen_events[db_name].add(key)
                 self.event_age[key] = 0
                 style = "bold red"
             else:
+                # If the event is already known, age the highlight timer until it exceeds highlight_ttl
                 age = self.event_age.get(key, 0)
                 if age < self.highlight_ttl:
                     style = "bold yellow"
@@ -413,6 +453,7 @@ class OracleLoginFailureMonitor:
         """
         components: list[Any] = []
         for db_name, data in results.items():
+            # Build an individual detailed table for each database
             table = Table(
                 title=f"[bold #8be9fd]{db_name}[/bold #8be9fd]",
                 box=SIMPLE,
@@ -430,6 +471,7 @@ class OracleLoginFailureMonitor:
             if rows:
                 marked_rows = self._mark_new_rows(db_name, rows)
                 for row, style in marked_rows:
+                    # Translate age state styles to exact theme colors
                     if style == "bold red":
                         row_style = "bold #ff5555"
                     elif style == "bold yellow":
@@ -447,6 +489,7 @@ class OracleLoginFailureMonitor:
                         style=row_style,
                     )
             else:
+                # Add placeholder if no logon failures are currently logged
                 table.add_row(
                     "[dim]No failures[/dim]",
                     "[dim]-[/dim]",
@@ -458,6 +501,7 @@ class OracleLoginFailureMonitor:
 
             components.append(Panel(table, border_style="#4e5a65", box=ROUNDED))
 
+        # Handle empty database configuration or loading state
         if not components:
             return Group(
                 Align.center(
@@ -482,6 +526,7 @@ class OracleLoginFailureMonitor:
         """
         layout = Layout()
 
+        # Split screen vertically into main sections
         layout.split(
             Layout(name="header", size=3),
             Layout(name="body", ratio=1),
@@ -489,6 +534,7 @@ class OracleLoginFailureMonitor:
             Layout(name="footer", size=1),
         )
 
+        # Split main body horizontally into Overview and Details panels
         layout["body"].split_row(
             Layout(name="overview", ratio=4),
             Layout(name="details", ratio=6),
@@ -574,10 +620,12 @@ class OracleLoginFailureMonitor:
 
         if self.headless:
             try:
+                # Continuous loop for daemon/headless mode
                 while True:
                     self.previous_results = results.copy()
                     results = self._fetch_all()
 
+                    # Write connection status summaries to console/file logs
                     for db_name, data in results.items():
                         status = data.get("status", "OFFLINE")
                         latency = data.get("latency_ms")
@@ -593,6 +641,7 @@ class OracleLoginFailureMonitor:
 
                         details = data.get("details", [])
                         if details:
+                            # Log any newly surfaced failures with WARNING severity
                             marked = self._mark_new_rows(db_name, details)
                             for row, style in marked:
                                 if style == "bold red":
@@ -606,12 +655,13 @@ class OracleLoginFailureMonitor:
                 self.close()
         else:
             try:
+                # Terminal UI mode: open and refresh the Rich Live context screen
                 with Live(
                     self._build_layout(results, self.previous_results),
                     refresh_per_second=1,
                     screen=True,
                 ) as live:
-                    # Run the first query immediately
+                    # Run the first query immediately on launch
                     results = self._fetch_all()
                     live.update(self._build_layout(results, self.previous_results))
 
@@ -626,6 +676,7 @@ class OracleLoginFailureMonitor:
 
 def main() -> None:
     """Create the monitor and start the dashboard loop."""
+    # Define CLI parameters
     parser = argparse.ArgumentParser(description="Oracle Login Failure Monitor")
     parser.add_argument(
         "--config",
@@ -640,12 +691,14 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
+        # Instantiate and initiate monitor lifecycle
         monitor = OracleLoginFailureMonitor(
             config_path=args.config,
             headless=args.headless,
         )
         monitor.run()
     except KeyboardInterrupt:
+        # Gracefully swallow KeyboardInterrupt on exit
         pass
 
 
