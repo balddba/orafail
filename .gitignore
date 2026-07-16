@@ -167,3 +167,4 @@ cython_debug/
 # IDE and tooling directories
 .idea/
 .air/
+/scripts/publish.py
