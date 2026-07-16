@@ -163,3 +163,7 @@ cython_debug/
 #.idea/
 
 /config.yaml
+
+# IDE and tooling directories
+.idea/
+.air/

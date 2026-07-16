@@ -1,4 +1,8 @@
-# Orafail
+<p align="center">
+  <img src="./assets/orafail_logo_small.png" alt="OraFail Logo" width="160">
+</p>
+
+# OraFail
 
 A live, terminal-based dashboard that polls multiple Oracle databases concurrently for failed logon attempts. Designed for DBAs and security administrators, it helps identify potential brute-force attacks, misconfigured connection scripts, and unauthorized access attempts in real-time.
 
@@ -14,6 +18,8 @@ A live, terminal-based dashboard that polls multiple Oracle databases concurrent
   - **Highlight Aging:** Color-codes new failure events in **bold red** and fades them through **bold yellow** over customizable cycles before returning to normal text.
   - **Integrated Log Viewer:** Real-time log capture and display directly on the dashboard.
 - **Headless Daemon Mode:** Run the monitor as a background service (`--headless`) that streams structured log entries to stdout and log files.
+- **Demo Mode:** Run with synthetic data (`--demo`) to explore the dashboard without Oracle connectivity.
+- **Sortable Failure View:** Sort the unified failure table by time, user, database, or count via `--sort-by` or the `sort_by` config option.
 - **Connection Caching & Resiliency:** Caches connections, performs active ping health-checks, handles automatic reconnects, and enforces TCP connect and query execution timeouts.
 - **Auditing Source:** Queries Oracle's `unified_audit_trail` (where `action_name = 'LOGON'` and `return_code != 0`).
 
@@ -53,11 +59,12 @@ Update `config.yaml` with your connection parameters. Do not commit `config.yaml
 | `databases` | `list` | Required | List of databases to monitor (each requiring `name`, `dsn`, `user`, and `password`). |
 | `max_workers` | `int` | `5` | Maximum number of concurrent database query worker threads. |
 | `refresh_seconds` | `int` | `15` | Polling frequency / UI refresh interval in seconds. |
-| `highlight_ttl` | `int` | `3` | Number of cycles a new logon failure row remains highlighted. |
+| `highlight_ttl` | `int` | `3` | Number of refresh cycles a new logon failure row remains highlighted. |
 | `log_file` | `str` | `null` | Path to a log file for logging output. |
-| `log_level` | `str` | `"INFO"` | Logging severity threshold (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
+| `log_level` | `str` | `"INFO"` | Logging severity threshold (`TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). |
 | `tcp_connect_timeout` | `int` | `10` | Timeout in seconds when establishing database TCP connections. |
 | `query_timeout` | `int` | `10` | Timeout in seconds for executing the database audit query. |
+| `sort_by` | `str` | `"time"` | Default sort column for the unified failure table (`time`, `user`, `database`, `count`). |
 
 #### Sample `config.yaml`
 ```yaml
@@ -70,8 +77,11 @@ databases:
 max_workers: 5
 refresh_seconds: 15
 highlight_ttl: 3
+sort_by: time
 log_file: "monitor.log"
 log_level: "INFO"
+tcp_connect_timeout: 10
+query_timeout: 10
 ```
 
 ---
@@ -87,14 +97,18 @@ You can use the bundled helper script `orafail` to run the application. The laun
 ```
 
 ```
-usage: orafail [-h] [--config CONFIG] [--headless]
+usage: orafail [-h] [--config CONFIG] [--headless] [--demo]
+               [--sort-by {time,user,database,count}]
 
 Oracle Login Failure Monitor
 
 options:
-  -h, --help       show this help message and exit
-  --config CONFIG  Path to the YAML configuration file (default: config.yaml)
-  --headless       Run in headless daemon mode (no terminal UI)
+  -h, --help            show this help message and exit
+  --config CONFIG       Path to the YAML configuration file (default: config.yaml)
+  --headless            Run in headless daemon mode (no terminal UI)
+  --demo                Run in demo mode with synthetic data (no database connection required)
+  --sort-by {time,user,database,count}
+                        Column to sort failures by (default: time)
 ```
 
 ### Running the Live TUI Dashboard
@@ -110,6 +124,41 @@ To run the monitor in the background or stream events to standard logging (e.g.,
 ```bash
 ./orafail --headless
 ```
+
+### Demo Mode
+
+Explore the dashboard with synthetic data — no `config.yaml` or Oracle connection required:
+
+```bash
+./orafail --demo
+```
+
+Demo mode uses three sample databases (`prod-oltp`, `dw-warehouse`, `auth-db`) and generates randomized failure events. If `config.yaml` exists, other settings (refresh interval, workers, etc.) are still loaded from it.
+
+### Sorting Failures
+
+Sort the unified failure table from the CLI or config:
+
+```bash
+./orafail --sort-by user
+./orafail --sort-by count
+```
+
+Valid values: `time` (default), `user`, `database`, `count`.
+
+---
+
+## Project Structure
+
+| Path | Purpose |
+|------|---------|
+| `src/orafail/main.py` | Entry point, `OracleLoginFailureMonitor`, dashboard rendering |
+| `src/orafail/config.py` | Re-exports `AppConfig` and `DatabaseConfig` |
+| `src/orafail/models/` | Pydantic models (`AppConfig`, `DatabaseConfig`, `FailureDetail`, `DatabaseResult`, `AllResults`, `EventKey`) |
+| `config.example.yaml` | Configuration template |
+| `config.yaml` | Active config with credentials — **not committed** |
+| `scripts/publish.py` | Release automation (version bump, GitHub release, PyPI publish) |
+| `orafail` | Bash launcher script |
 
 ---
 
@@ -151,6 +200,26 @@ uv run --with ruff ruff format src/ tests/
 # Check lints
 uv run --with ruff ruff check src/ tests/
 ```
+
+### Publishing Releases
+
+The `scripts/publish.py` script automates version bumps, git commits, GitHub releases, and PyPI publishing:
+
+```bash
+# Interactive release (prompts for bump type)
+uv run python scripts/publish.py
+
+# Patch bump with confirmation bypass
+uv run python scripts/publish.py --bump patch --yes
+
+# Dry-run to preview steps
+uv run python scripts/publish.py --bump patch --dry-run
+
+# Build and publish to PyPI only (skip version bump and GitHub release)
+uv run python scripts/publish.py --only-publish
+```
+
+Requires `uv`, `gh` (authenticated), and PyPI credentials (`UV_PUBLISH_TOKEN` or keyring).
 
 ## Security Best Practices
 

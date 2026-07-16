@@ -36,7 +36,7 @@ log_level: "DEBUG"
     assert app_config.databases[0].name == "test-db"
     assert app_config.databases[0].dsn == "localhost:1521/XE"
     assert app_config.databases[0].user == "test_user"
-    assert app_config.databases[0].password == "test_password"
+    assert app_config.databases[0].password.get_secret_value() == "test_password"
     assert app_config.max_workers == 4
     assert app_config.refresh_seconds == 10
     assert app_config.highlight_ttl == 2

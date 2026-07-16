@@ -20,11 +20,20 @@ max_workers: 5
 # Polling interval (seconds) between monitor refreshes.
 refresh_seconds: 15
 
-# Highlight duration (seconds) for newly detected failures.
+# Highlight duration (refresh cycles) for newly detected failures.
 highlight_ttl: 3
+
+# Default sort column for the unified failure table (time, user, database, count).
+sort_by: time
 
 # Log file location (relative or absolute). Set to null to disable logging to a file.
 log_file: "monitor.log"
 
 # Logging level (TRACE, DEBUG, INFO, SUCCESS, WARNING, ERROR, CRITICAL)
 log_level: "INFO"
+
+# Timeout in seconds when establishing database TCP connections.
+tcp_connect_timeout: 10
+
+# Timeout in seconds for executing the database audit query.
+query_timeout: 10

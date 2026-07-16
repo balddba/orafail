@@ -15,11 +15,13 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+    "configdict>=2.14.2",
     "loguru>=0.7.3",
     "oracledb>=3.4.2",
     "pydantic>=2.13.1",
     "pyyaml>=6.0.3",
     "rich>=14.3.3",
+    "uv>=0.11.29",
 ]
 
 [project.scripts]
@@ -35,3 +37,9 @@ packages = ["src/orafail"]
 dev = [
     "pytest>=9.1.1",
 ]
+
+[tool.publish]
+version_files = [
+    "src/orafail/__init__.py",
+]
+
